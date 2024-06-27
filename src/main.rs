@@ -45,19 +45,18 @@ fn begin() {
         begin()
     }
 
-    println!("You entered: {}", input.trim()); // Выводим введенное значение
-
-    if input == "" {
-        println!("{}", "None writed, exit...");
-        std::process::exit(0);
+    if input.trim().is_empty() {
+        std::process::exit(0); // Выход
     }
-
-    debugging(&input.trim()); // Вызываем функцию дебаг
-    calculate(formatting(&input.trim())); // Вызываем функцию вычисления
-    unsafe {
-        DEBUG_MODE = false;
+    else {
+        println!("You entered: {}", input.trim());
+        debugging(&input.trim()); // Вызываем функцию дебаг
+        calculate(formatting(&input.trim())); // Вызываем функцию вычисления
+        unsafe {
+            DEBUG_MODE = false;
+        }
+        let_start_again()
     }
-    let_start_again()
 }
 
 fn formatting(formule: &str) -> Vec<String> {
@@ -178,7 +177,7 @@ fn calculate(formula: Vec<String>) -> f32 {
             }
         }
     }
-
+    
     let result = values.pop().unwrap();
     println!("Result: {}", result);
     result
