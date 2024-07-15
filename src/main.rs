@@ -88,7 +88,7 @@ fn formatting(formule: &str) -> Vec<String> {
                 stack.last_mut().unwrap().push(c);
                 dot_count += 1; // Увеличиваем счетчик точек
             }
-        } else if c == '+' || c == '*' || c == '/' || c == '(' || c == ')' {
+        } else if c == '+' || c == '*' || c == '/' || c == '(' || c == ')' || c == '^'{
             // Если символ является оператором (кроме '-')
             stack.push(String::from(c)); // Добавляем оператор в стек
             stack.push(String::from("")); // Добавляем пустую строку в стек
@@ -146,7 +146,7 @@ fn calculate(formula: Vec<String>) -> f32 {
                 }
                 apply_operator(&mut values, &op);
             }
-        } else if token == "+" || token == "-" || token == "*" || token == "/" {
+        } else if token == "+" || token == "-" || token == "*" || token == "/" || token == "^" {
             while let Some(last_op) = operators.last() {
                 if precedence(token) <= precedence(last_op) {
                     let op = operators.pop().unwrap();
@@ -191,6 +191,7 @@ fn apply_operator(values: &mut Vec<f32>, op: &str) {
         "-" => left - right,
         "*" => left * right,
         "/" => left / right,
+        "^" => left.powf(right),
         _ => panic!("Unknown operator"),
     };
     values.push(result);
