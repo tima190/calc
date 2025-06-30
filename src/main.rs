@@ -5,8 +5,6 @@ use std::io::{self, Write}; // Импортируем библиотеки дл�
 mod debug; // Импортируем модуль debug.rs
 use crate::debug::debugging;
 
-static mut DEBUG_MODE: bool = false;
-
 fn main() {
     println!(
         "{}, ver: {}, by: {} ; print 'H' to see help ; to exit print 'Q'",
@@ -18,112 +16,102 @@ fn main() {
 }
 
 fn begin() {
-    let prefix = ">> "; // Префикс для ввода
-    print!("{}", prefix); // Выводим префикс
-    io::stdout().flush().unwrap(); // Принудительный вывод префикса (необходимо для корректного отображения префикса)
+    loop {
+        let prefix = ">> ";
+        print!("{}", prefix.cyan());
+        io::stdout().flush().unwrap();
 
-    let mut input = String::new(); // Строка для ввода
+        let mut input = String::new();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
 
-    io::stdin() // Ввод с клавиатуры
-        .read_line(&mut input)
-        .expect("Failed to read line");
+        let trimmed = input.trim();
 
-    
-
-    if input.chars().nth(0).unwrap() == 'H' || input.chars().nth(0).unwrap() == 'h' {
-        // Выводим помощь
-        println!(
-            "{}\n{}\n{}\n{}\n{}\n{}\n{}",
-            "calc help".bold().red(),
-            "'!' = debug mode".italic(),
-            "'+' = addition".italic(),
-            "'-' = subtraction".italic(),
-            "'*' = multiplication".italic(),
-            "'/' = division".italic(),
-            "'(' or ')' = bracket".italic()
-        );
-        begin()
-    }
-
-    if input.trim().is_empty() {
-        std::process::exit(0); // Выход
-    }
-    else {
-        println!("You entered: {}", input.trim());
-        debugging(&input.trim()); // Вызываем функцию дебаг
-        calculate(formatting(&input.trim())); // Вызываем функцию вычисления
-        unsafe {
-            DEBUG_MODE = false;
+        if trimmed.eq_ignore_ascii_case("h") {
+            println!(
+                "{}\n{}\n{}\n{}\n{}\n{}\n{}",
+                "calc help".bold().green(),
+                "'!' = debug mode".italic(),
+                "'+' = addition".italic(),
+                "'-' = subtraction".italic(),
+                "'*' = multiplication".italic(),
+                "'/' = division".italic(),
+                "'(' or ')' = bracket".italic()
+            );
+            continue;
         }
-        let_start_again()
+
+        if trimmed.is_empty() {
+            println!("{}", "Exiting...".bold().green());
+            break;
+        }
+
+        println!("You entered: {}", trimmed);
+        debugging(trimmed);
+
+        match formatting(trimmed) {
+            Ok(tokens) => {
+                calculate(tokens);
+            }
+            Err(e) => {
+                println!("{}", e.red());
+            }
+        }
     }
 }
 
-fn formatting(formule: &str) -> Vec<String> {
-    if formule == "exit" || formule == "quit" || formule == "q" || formule == "Q" {
-        println!("{}", "Bye!".bold().on_green());
-        std::process::exit(0); // Выход
-    }
-
-    let mut stack: Vec<String> = vec![String::from("")]; // Массив для хранения чисел в виде строк
-    let mut dot_count = 0; // Счетчик точек в текущем числе
-    let mut last_char = ' '; // Переменная для отслеживания последнего символа
+fn formatting(formule: &str) -> Result<Vec<String>, String> {
+    let mut stack: Vec<String> = vec![String::from("")];
+    let mut dot_count = 0;
+    let mut last_char = ' ';
 
     for c in formule.chars() {
-        if c.is_digit(10) {
-            // Если символ является цифрой
+        if c.is_ascii_digit() {
             stack.last_mut().unwrap().push(c);
         } else if c == '.' {
-            // Если символ является точкой
             if dot_count > 0 {
-                // Если уже есть одна точка в текущем числе, это ошибка
-                println!(
-                    "{}",
-                    "Error: Invalid number format with multiple decimal points."
-                        .bold()
-                        .red()
-                );
-                begin();
-            } else {
-                stack.last_mut().unwrap().push(c);
-                dot_count += 1; // Увеличиваем счетчик точек
+                return Err("Invalid number format: multiple decimal points.".to_string());
             }
-        } else if c == '+' || c == '*' || c == '/' || c == '(' || c == ')' || c == '^'{
-            // Если символ является оператором (кроме '-')
-            stack.push(String::from(c)); // Добавляем оператор в стек
-            stack.push(String::from("")); // Добавляем пустую строку в стек
-            dot_count = 0; // Сбрасываем счетчик точек при переходе к новому числу
+            stack.last_mut().unwrap().push(c);
+            dot_count += 1;
+        } else if "+*/()^".contains(c) {
+            stack.push(c.to_string());
+            stack.push(String::new());
+            dot_count = 0;
         } else if c == '-' {
-            // Если символ является минусом
             if last_char == ' ' || last_char == '(' || "+-*/(".contains(last_char) {
-                // Минус как часть числа (отрицательное число)
                 stack.last_mut().unwrap().push(c);
             } else {
-                // Минус как оператор
-                stack.push(String::from(c)); // Добавляем оператор в стек
-                stack.push(String::from("")); // Добавляем пустую строку в стек
+                stack.push(c.to_string());
+                stack.push(String::new());
             }
-            dot_count = 0; // Сбрасываем счетчик точек при переходе к новому числу
+            dot_count = 0;
         } else if c == ' ' {
-            // Если символ является пробелом
             continue;
+        
         } else if c == '!' {
-            unsafe { DEBUG_MODE = true }
+            continue;
+        
         } else {
-            println!("{}", "Error: Invalid characters entered!".bold().red());
-            begin();
+            return Err(format!("Invalid character: '{}'", c));
         }
 
-        last_char = c; // Обновляем последний символ
+        last_char = c;
     }
 
-    if formule.chars().nth(0).unwrap() == '!' {
-        println!("DEBUG: {:?}", formule);
-        println!("DEBUG len: {:?}", formule.len());
+    match formule.chars().next() {
+    Some('!') => {
+        println!("{}{:?}","DEBUG: ".bold().green(), formule);
+        println!("{}{:?}","DEBUG len: ".bold().green(), formule.len());
+    }
+    _ => {}
     }
 
-    stack // спасибо чату жпт что подсказал что надо поставить эту хуйню :D
+    Ok(stack)
 }
+
+
 
 
 fn calculate(formula: Vec<String>) -> f32 {
@@ -158,24 +146,10 @@ fn calculate(formula: Vec<String>) -> f32 {
             operators.push(token.clone());
         }
         i += 1;
-        unsafe {
-            if DEBUG_MODE == true {
-                println!("-- {}", i);
-                println!("!operators: {:?}", operators);
-                println!("!values: {:?}", values);
-            }
-        }
     }
 
     while let Some(op) = operators.pop() {
         apply_operator(&mut values, &op);
-        unsafe {
-            if DEBUG_MODE == true {
-                println!("-- op");
-                println!("!operators: {:?}", operators);
-                println!("!values: {:?}", values);
-            }
-        }
     }
     
     let result = values.pop().unwrap();
@@ -190,7 +164,12 @@ fn apply_operator(values: &mut Vec<f32>, op: &str) {
         "+" => left + right,
         "-" => left - right,
         "*" => left * right,
-        "/" => left / right,
+        "/" => {
+        if right == 0.0 {
+            panic!("Division by zero");
+        }
+        left / right
+        },
         "^" => left.powf(right),
         _ => panic!("Unknown operator"),
     };
@@ -201,11 +180,8 @@ fn precedence(op: &str) -> i32 {
     match op {
         "+" | "-" => 1,
         "*" | "/" => 2,
+        "^" => 3,
         "(" => 0,
         _ => panic!("Unknown operator"),
     }
-}
-
-fn let_start_again() {
-    begin()
 }
