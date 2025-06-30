@@ -1,5 +1,5 @@
 
-# 📟 calc
+# calc
 
 **A simple CLI calculator written in Rust.**
 
